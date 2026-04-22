@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🌾 SmartSeason Login</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(to right, #a8e063, #56ab2f);
+    }
+
+    .box {
+      background: white;
+      padding: 30px;
+      width: 320px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    h2 {
+      color: #2e7d32;
+      margin-bottom: 15px;
+    }
+
+    input, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #1b5e20;
+    }
+
+    a {
+      display: block;
+      margin-top: 12px;
+      color: #2e7d32;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    #message {
+      margin-top: 10px;
+      font-size: 14px;
+      color: red;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+
+  <h2>🌾 SmartSeason Login</h2>
+
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+
+  <button onclick="login()">Login</button>
+
+  <a href="signup.html">New user? Create account</a>
+
+  <div id="message"></div>
+
+</div>
+
+<script>
+
+async function login() {
+
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const messageBox = document.getElementById("message");
+
+  if (!email || !password) {
+    messageBox.innerText = "Please fill all fields";
+    return;
+  }
+
+  try {
+
+    const response = await fetch("http://localhost/smartseason/login.php", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.message === "Login successful") {
+
+      // store session data
+      localStorage.setItem("email", data.email);
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("token", "logged-in");
+
+      // redirect
+      window.location.href = "dashboard.html";
+
+    } else {
+      messageBox.innerText = data.message || "Login failed";
+    }
+
+  } catch (error) {
+    messageBox.innerText = "Server error. Check XAMPP or login.php";
+    console.log(error);
+  }
+}
+
+</script>
+
+</body>
+</html>
