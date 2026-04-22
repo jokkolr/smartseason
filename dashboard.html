@@ -136,13 +136,12 @@
 
 <script>
 
-const API = "http://localhost/smartseason/";
+const API = "https://smartseason.infinityfreeapp.com/";
 
 const email = localStorage.getItem("email");
 const role = localStorage.getItem("role");
-const token = localStorage.getItem("token");
 
-if (!token || !email || !role) {
+if (!email || !role) {
   window.location.href = "index.html";
 }
 
@@ -154,7 +153,6 @@ document.getElementById("role").innerText = role;
 let chartInstance = null;
 
 function renderChart(planted, growing, completed) {
-
   const ctx = document.getElementById("fieldChart").getContext("2d");
 
   if (chartInstance) chartInstance.destroy();
@@ -173,12 +171,11 @@ function renderChart(planted, growing, completed) {
 
 // ---------------- LOAD AGENTS ----------------
 function loadAgents() {
-
   fetch(API + "get_agents.php")
     .then(res => res.json())
     .then(data => {
-
       const select = document.getElementById("agentSelect");
+      select.innerHTML = `<option value="">Assign to Agent</option>`;
 
       data.forEach(agent => {
         const option = document.createElement("option");
@@ -186,24 +183,76 @@ function loadAgents() {
         option.textContent = agent.email;
         select.appendChild(option);
       });
-
     })
-    .catch(err => console.log(err));
+    .catch(err => console.log("Agents error:", err));
+}
+
+// ---------------- ADD FIELD (DEBUG VERSION) ----------------
+function addField() {
+
+  const assigned = role === "admin"
+    ? document.getElementById("agentSelect").value
+    : email;
+
+  if (!assigned) {
+    alert("Please select an agent");
+    return;
+  }
+
+  const field = {
+    name: document.getElementById("fieldName").value.trim(),
+    crop: document.getElementById("cropType").value.trim(),
+    date: document.getElementById("plantingDate").value,
+    stage: document.getElementById("stage").value,
+    assigned_to: assigned
+  };
+
+  if (!field.name || !field.crop || !field.date) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  fetch(API + "add_field.php", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(field)
+  })
+  .then(res => res.text()) // 🔥 IMPORTANT FIX
+  .then(data => {
+    console.log("RAW RESPONSE:", data);
+    alert(data); // 👈 THIS WILL SHOW REAL ERROR
+    loadFields();
+    clearForm();
+  })
+  .catch(err => {
+    console.log("Add error:", err);
+    alert("Network/Server error");
+  });
 }
 
 // ---------------- LOAD FIELDS ----------------
 function loadFields() {
-
   fetch(`${API}get_fields.php?email=${email}&role=${role}`)
     .then(res => res.json())
     .then(data => renderFields(data))
     .catch(err => {
-      console.log(err);
+      console.log("Load error:", err);
       alert("Failed to load fields");
     });
 }
 
-// ---------------- RENDER FIELDS (FIXED) ----------------
+// ---------------- UPDATE FIELD ----------------
+function updateStage(id, stage) {
+  fetch(API + "update_field.php", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ id, stage })
+  })
+  .then(() => loadFields())
+  .catch(err => console.log(err));
+}
+
+// ---------------- RENDER ----------------
 function renderFields(fields) {
 
   const list = document.getElementById("fieldsList");
@@ -214,17 +263,13 @@ function renderFields(fields) {
   let completed = 0;
 
   if (!Array.isArray(fields)) {
-    console.log("Invalid data received:", fields);
+    console.log("Invalid response:", fields);
     return;
   }
 
   fields.forEach(f => {
 
-    const name = f.name ?? "Unknown";
-    const crop = f.crop ?? "Unknown";
-    const stage = f.stage ?? "Planted";
-    const date = f.planting_date ?? "N/A";
-    const assigned = f.assigned_to ?? "Not assigned";
+    const stage = f.stage || "Planted";
 
     if (stage === "Planted") planted++;
     if (stage === "Growing") growing++;
@@ -232,10 +277,10 @@ function renderFields(fields) {
 
     list.innerHTML += `
       <div class="field">
-        <b>${name}</b> (${crop}) <br>
+        <b>${f.name}</b> (${f.crop}) <br>
         Stage: ${stage} <br>
-        Date: ${date} <br>
-        Assigned: ${assigned} <br><br>
+        Date: ${f.planting_date} <br>
+        Assigned: ${f.assigned_to || "Not assigned"} <br><br>
 
         <select onchange="updateStage(${f.id}, this.value)">
           <option value="Planted" ${stage === "Planted" ? "selected" : ""}>Planted</option>
