@@ -3,26 +3,63 @@
 header("Content-Type: application/json");
 include "db.php";
 
-$data = json_decode(file_get_contents("php://input"));
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+$data = json_decode(file_get_contents("php://input"), true);
 
 if (!$data) {
-    echo json_encode(["message" => "No data received"]);
+    echo json_encode([
+        "success" => false,
+        "message" => "No data received"
+    ]);
     exit;
 }
 
-$name = $data->name ?? "";
-$crop = $data->crop ?? "";
-$date = $data->date ?? "";
-$stage = $data->stage ?? "";
-$assigned_to = $data->assigned_to ?? "";
+$name = $data["name"] ?? "";
+$crop = $data["crop"] ?? "";
+$date = $data["date"] ?? "";
+$stage = $data["stage"] ?? "";
+$assigned_to = $data["assigned_to"] ?? "";
 
-$stmt = $conn->prepare("INSERT INTO fields (name, crop, planting_date, stage, assigned_to) VALUES (?, ?, ?, ?, ?)");
+// DEBUG PRINT
+if (!$name || !$crop || !$date || !$assigned_to) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Missing data",
+        "data_received" => $data
+    ]);
+    exit;
+}
+
+$stmt = $conn->prepare("
+    INSERT INTO fields (name, crop, planting_date, stage, assigned_to)
+    VALUES (?, ?, ?, ?, ?)
+");
+
+if (!$stmt) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Prepare failed",
+        "error" => $conn->error
+    ]);
+    exit;
+}
+
 $stmt->bind_param("sssss", $name, $crop, $date, $stage, $assigned_to);
 
-if ($stmt->execute()) {
-    echo json_encode(["message" => "Field added successfully"]);
-} else {
-    echo json_encode(["message" => "Failed to add field"]);
+if (!$stmt->execute()) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Execute failed",
+        "error" => $stmt->error
+    ]);
+    exit;
 }
+
+echo json_encode([
+    "success" => true,
+    "message" => "Field added successfully"
+]);
 
 ?>
